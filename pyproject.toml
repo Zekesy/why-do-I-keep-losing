@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "why_do_i_keep_losing"
+version = "0.1.0"
+dependencies = [
+    "requests",
+    "pandas",
+    "pyarrow",
+]

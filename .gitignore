@@ -1,0 +1,42 @@
+# Byte-compiled / Python internal files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Build and packaging artifacts
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environments
+venv/
+env/
+ENV/
+.venv/
+
+# Data & Checkpoints (Exclude large binaries and datasets)
+data/processed/*.parquet
+data/
+models/*.pth
+models/*.pt
+models/*.onnx
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs & Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Keep directory structure intact with .gitkeep if needed
+!data/processed/.gitkeep
+!models/.gitkeep
