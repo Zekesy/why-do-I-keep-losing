@@ -132,7 +132,6 @@ def main():
 
         # Expected:
         # File:Anti-Mage icon dota2 gameasset.png
-
         prefix = "File:"
         suffix = " icon dota2 gameasset.png"
 

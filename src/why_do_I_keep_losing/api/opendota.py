@@ -34,46 +34,67 @@ def get_pro_matches() -> List[dict]:
 
     return response.json()
 
-def get_all_pro_matches(target_match_count: int = 5000) -> List[Dict[str, Any]]:
-    """Paginates through /proMatches until reaching the target_match_count."""
+def get_all_pro_matches(
+    target_match_count: int = 2000,
+    less_than_match_id: int | None = None,
+) -> List[Dict[str, Any]]:
+    """
+    Paginate through /proMatches.
+
+    If less_than_match_id is provided, only return matches
+    older than that match ID.
+
+    OpenDota returns pro matches newest -> oldest.
+    """
+
     all_matches = []
-    last_match_id = None
+    last_match_id = less_than_match_id
 
     while len(all_matches) < target_match_count:
-        url = "https://api.opendota.com/api/proMatches"
         params = {}
 
-        # Paginate backward in time using the oldest match ID seen so far
-        if last_match_id:
+        if last_match_id is not None:
             params["less_than_match_id"] = last_match_id
 
         try:
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(
+                f"{OPENDOTA_API}/proMatches",
+                params=params,
+                timeout=10,
+            )
+
             response.raise_for_status()
+
             batch = response.json()
+
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching match page: {e}. Stopping pagination.")
+            print(
+                f"[!] Error fetching match page: {e}. "
+                "Stopping pagination."
+            )
             break
 
-        # Stop if OpenDota returns no more matches
         if not batch:
-            print("No more pro matches available.")
+            print("[!] No more pro matches available.")
             break
 
         all_matches.extend(batch)
+
+        # The final item is the oldest match in this page.
         last_match_id = batch[-1]["match_id"]
 
         print(
-            f"Fetched {len(all_matches)}/{target_match_count} match headers... (Oldest ID: {last_match_id})"
+            f"Fetched "
+            f"{len(all_matches)}/{target_match_count} "
+            f"match headers... "
+            f"(Oldest ID: {last_match_id})"
         )
 
-        time.sleep(1.0)  # Respect OpenDota rate limits
+        time.sleep(1.0)
 
-    # Truncate to exact target count
     return all_matches[:target_match_count]
 
-
-def get_match_details(match_id, retries: int = 5) -> dict:
+def get_match_details(match_id, retries: int = 3) -> dict:
     """Get a single match details"""
     url = f"{OPENDOTA_API}/matches/{match_id}"
 
