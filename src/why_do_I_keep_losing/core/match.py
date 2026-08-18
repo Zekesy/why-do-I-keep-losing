@@ -18,7 +18,8 @@ class Ban:
 
 
 @dataclass
-class MatchSummary:
+class MatchSummary
+    import torch:
     match_id: int
     patch: Optional[int]
     winning_team: str  # "radiant" or "dire"

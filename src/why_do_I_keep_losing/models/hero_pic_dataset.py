@@ -2,6 +2,7 @@ import os
 
 import pandas as pd
 from PIL import Image
+import json
 
 import torch
 from torch.utils.data import Dataset
@@ -15,22 +16,62 @@ class DotaHeroPicViTDataset(Dataset):
         self.icons_dir = icons_dir
         self.transform = transform
 
+        metadata_path = os.path.join(
+            os.path.dirname(self.icons_dir),
+            "metadata.json",
+        )
+
+        with open(metadata_path, "r") as f:
+            self.hero_metadata = json.load(f)
+
         self.hero_tensor_cache={}
         self._pretransform_icons()
 
 
     def _pretransform_icons(self):
-        for filename in os.listdir(self.icons_dir):
-            if filename.endswith(".png"):
-                hero_id = int(filename.split(".")[0])
-                img_path = os.path.join(self.icons_dir, filename)
-                image = Image.open(img_path).convert("RGB")
+        """Load and transform all hero icons into memory."""
+        for hero_id_str, hero_data in self.hero_metadata.items():
+            hero_id = int(hero_id_str)
+            localized_name = hero_data["localized_name"]
+            # Convert:
+            # Anti-Mage       -> anti_mage.png
+            # Ancient Apparition -> ancient_apparition.png
+            # Nature's Prophet -> natures_prophet.png
+            filename = (
+                localized_name
+                .lower()
+                .replace(" ", "_")
+                .replace("-", "")
+                .replace("'", "")
+                + ".png"
+            )
 
-                if self.transform:
-                    tensor = self.transform(image)
-                else:
-                   tensor = F.to_tensor(image) 
-                self.hero_tensor_cache[hero_id] = tensor
+            img_path = os.path.join(
+                self.icons_dir,
+                filename,
+            )
+
+            if not os.path.exists(img_path):
+                print(
+                    f"[WARNING] Icon not found for "
+                    f"{localized_name}: {filename}"
+                )
+                continue
+
+            image = Image.open(img_path).convert("RGB")
+
+            if self.transform:
+                tensor = self.transform(image)
+            else:
+                tensor = F.to_tensor(image)
+
+            self.hero_tensor_cache[hero_id] = tensor
+
+        print(
+            f"[INFO] Loaded "
+            f"{len(self.hero_tensor_cache)} / "
+            f"{len(self.hero_metadata)} hero icons"
+        )
     
     def __len__(self):
         return len(self.df)
@@ -42,13 +83,22 @@ class DotaHeroPicViTDataset(Dataset):
         default_tensor = next(iter(self.hero_tensor_cache.values())).clone().zero_()
 
         # Retrieve 5 Radiant tensors and 5 Dire tensors
+        radiant_heroes = sorted(
+            row["radiant_heroes"],
+            key=lambda x: x["role"] if x["role"] is not None else 99,
+        )
         radiant_tensors = [
             self.hero_tensor_cache.get(p["hero_id"], default_tensor)
-            for p in row["radiant_heroes"][:5]
+            for p in radiant_heroes[:5]
         ]
+
+        dire_heroes = sorted(
+            row["dire_heroes"],
+            key=lambda x: x["role"] if x["role"] is not None else 99,
+        )
         dire_tensors = [
             self.hero_tensor_cache.get(p["hero_id"], default_tensor)
-            for p in row["dire_heroes"][:5]
+            for p in dire_heroes[:5]
         ]
 
         # 1. Concatenate horizontally to make 2 rows of 5 hero cards each -> Shape: [3, H, 5*W]
