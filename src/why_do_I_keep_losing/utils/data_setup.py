@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision import transforms
 
-from why_do_I_keep_losing.models.dataset import DotaHeroPicViTDataset
+from why_do_I_keep_losing.models.hero_pic_dataset import DotaHeroPicViTDataset
 
 
 def create_dataloaders(
