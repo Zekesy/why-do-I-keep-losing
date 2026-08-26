@@ -45,7 +45,7 @@ def create_dataloaders(
         val_dataset, test_dataset)
     """
     full_dataset = DotaHeroPicViTDataset(
-        parquet_path=parquet_dir,
+        parquet_dir=parquet_dir,
         icons_dir=icons_dir,
         transform=transform,
     )
