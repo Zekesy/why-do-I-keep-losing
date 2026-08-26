@@ -11,7 +11,7 @@ from why_do_I_keep_losing.models.hero_pic_dataset import DotaHeroPicViTDataset
 
 
 def create_dataloaders(
-    parquet_path: str,
+    parquet_dir: str,
     icons_dir: str,
     transform: Optional[transforms.Compose] = None,
     batch_size: int = 32,
@@ -30,7 +30,7 @@ def create_dataloaders(
     """Creates training, validation, and optional test DataLoaders.
 
     Args:
-        parquet_path: Path to the processed matches Parquet file.
+        parquet_dir: Path to the directory containing processed Parquet files.
         icons_dir: Path to the hero icon PNG files directory.
         transform: Torchvision or timm transform pipeline for hero images.
         batch_size: Number of samples per batch.
@@ -45,7 +45,7 @@ def create_dataloaders(
         val_dataset, test_dataset)
     """
     full_dataset = DotaHeroPicViTDataset(
-        parquet_path=parquet_path,
+        parquet_path=parquet_dir,
         icons_dir=icons_dir,
         transform=transform,
     )

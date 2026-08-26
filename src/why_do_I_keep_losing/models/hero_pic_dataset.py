@@ -3,6 +3,7 @@ import os
 import pandas as pd
 from PIL import Image
 import json
+from pathlib import Path
 
 import torch
 from torch.utils.data import Dataset
@@ -11,8 +12,43 @@ import torchvision.transforms.functional as F
 
 
 class DotaHeroPicViTDataset(Dataset):
-    def __init__(self, parquet_path: str, icons_dir: str, transform=None):
-        self.df = pd.read_parquet(parquet_path)
+    def __init__(self, parquet_dir: str, icons_dir: str, transform=None):
+        parquet_dir = Path(parquet_dir)
+        parquet_files = sorted(parquet_dir.glob("*.parquet"))
+
+        if not parquet_files:
+            raise FileNotFoundError(
+                f"No parquet files found in {parquet_dir}"
+            )
+
+        print(
+            f"[INFO] Found {len(parquet_files)} parquet files"
+        )
+
+        dfs = [
+            pd.read_parquet(parquet_file)
+            for parquet_file in parquet_files 
+        ]
+
+
+        self.df = pd.concat(dfs, ignore_index=True)
+
+        duplicate_count = self.df["match_id"].duplicated().sum()
+
+        if duplicate_count > 0:
+            print(
+                f"[WARNING] Found {duplicate_count} duplicate matches"
+            )
+
+            self.df = self.df.drop_duplicates(
+                subset="match_id",
+                keep="first",
+            ).reset_index(drop=True)
+
+        print(
+            f"[INFO] Loaded {len(self.df)} unique matches"
+        )
+
         self.icons_dir = icons_dir
         self.transform = transform
 
