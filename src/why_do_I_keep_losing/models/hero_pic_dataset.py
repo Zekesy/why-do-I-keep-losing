@@ -11,6 +11,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms 
 import torchvision.transforms.functional as F
 
+from why_do_I_keep_losing.core.hero_image import create_match_tensor
 
 class DotaHeroPicViTDataset(Dataset):
     def __init__(self, parquet_dir: str, icons_dir: str, transform=None, random_order: bool=False):
@@ -137,26 +138,14 @@ class DotaHeroPicViTDataset(Dataset):
                 row["dire_heroes"],
                 key=lambda x: x["role"] if x["role"] is not None else 99,
             )
-
-        # Retrieve 5 Radiant tensors and 5 Dire tensors
-        radiant_tensors = [
-            self.hero_tensor_cache.get(p["hero_id"], default_tensor)
-            for p in radiant_heroes[:5]
+        # Convert to Ids to match func input format
+        radiant_hero_ids = [
+            hero["hero_id"] for hero in radiant_heroes[:5]
         ]
-        dire_tensors = [
-            self.hero_tensor_cache.get(p["hero_id"], default_tensor)
-            for p in dire_heroes[:5]
+        dire_hero_ids = [
+            hero["hero_id"] for hero in dire_heroes[:5]
         ]
-
-        # 1. Concatenate horizontally to make 2 rows of 5 hero cards each -> Shape: [3, H, 5*W]
-        radiant_row = torch.cat(radiant_tensors, dim=2)
-        dire_row = torch.cat(dire_tensors, dim=2)
-
-        # 2. Concatenate vertically -> Shape: [3, 2*H, 5*W]
-        grid_tensor = torch.cat([radiant_row, dire_row], dim=1)
-
-        # 3. Resize final composite grid to the exact dimensions expected by standard ViT
-        match_tensor = F.resize(grid_tensor, [224, 224], antialias=True)
+        match_tensor = create_match_tensor(radiant_hero_ids, dire_hero_ids, self.hero_tensor_cache)
 
         # Binary label: 1.0 for Radiant win, 0.0 for Dire win
         label = torch.tensor(
