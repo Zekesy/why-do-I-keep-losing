@@ -1,4 +1,5 @@
 import os
+import random 
 
 import pandas as pd
 from PIL import Image
@@ -12,7 +13,8 @@ import torchvision.transforms.functional as F
 
 
 class DotaHeroPicViTDataset(Dataset):
-    def __init__(self, parquet_dir: str, icons_dir: str, transform=None):
+    def __init__(self, parquet_dir: str, icons_dir: str, transform=None, random_order: bool=False):
+        self.random_order = random_order
         parquet_dir = Path(parquet_dir)
         parquet_files = sorted(parquet_dir.glob("*.parquet"))
 
@@ -117,21 +119,30 @@ class DotaHeroPicViTDataset(Dataset):
 
         # Get first hero tensor to infer shape & device for fallbacks
         default_tensor = next(iter(self.hero_tensor_cache.values())).clone().zero_()
+        
+        radiant_heroes = list(row["radiant_heroes"])
+        dire_heroes = list(row["dire_heroes"])
+
+        if self.random_order:
+            random.shuffle(radiant_heroes)
+            random.shuffle(dire_heroes)
+        else:
+            radiant_heroes = sorted(
+                row["radiant_heroes"],
+                key=lambda x: x["role"] if x["role"] is not None else 99,
+            )
+
+
+            dire_heroes = sorted(
+                row["dire_heroes"],
+                key=lambda x: x["role"] if x["role"] is not None else 99,
+            )
 
         # Retrieve 5 Radiant tensors and 5 Dire tensors
-        radiant_heroes = sorted(
-            row["radiant_heroes"],
-            key=lambda x: x["role"] if x["role"] is not None else 99,
-        )
         radiant_tensors = [
             self.hero_tensor_cache.get(p["hero_id"], default_tensor)
             for p in radiant_heroes[:5]
         ]
-
-        dire_heroes = sorted(
-            row["dire_heroes"],
-            key=lambda x: x["role"] if x["role"] is not None else 99,
-        )
         dire_tensors = [
             self.hero_tensor_cache.get(p["hero_id"], default_tensor)
             for p in dire_heroes[:5]
