@@ -14,6 +14,7 @@ def create_dataloaders(
     parquet_dir: str,
     icons_dir: str,
     transform: Optional[transforms.Compose] = None,
+    random_order: bool=False,
     batch_size: int = 32,
     val_split: float = 0.15,
     test_split: float = 0.15,
@@ -48,6 +49,7 @@ def create_dataloaders(
         parquet_dir=parquet_dir,
         icons_dir=icons_dir,
         transform=transform,
+        random_order=random_order,
     )
 
     total_len = len(full_dataset)
