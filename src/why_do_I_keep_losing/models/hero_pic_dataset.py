@@ -13,6 +13,10 @@ import torchvision.transforms.functional as F
 
 from why_do_I_keep_losing.core.hero_image import create_match_tensor
 
+# 224 / 5 cols ≈ 44.8 -> use 32 (patch-aligned) so 5*32=160 <= 224
+CELL_W = 32
+CELL_H = 32  # 2 rows * 32 = 64 <= 224
+
 class DotaHeroPicViTDataset(Dataset):
     def __init__(self, parquet_dir: str, icons_dir: str, transform=None, random_order: bool=False):
         self.random_order = random_order
@@ -53,7 +57,14 @@ class DotaHeroPicViTDataset(Dataset):
         )
 
         self.icons_dir = icons_dir
-        self.transform = transform
+        self.transform = transform or transforms.Compose([
+            transforms.Resize((CELL_H, CELL_W)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225],
+            ),
+        ])
 
         metadata_path = os.path.join(
             os.path.dirname(self.icons_dir),
@@ -145,7 +156,7 @@ class DotaHeroPicViTDataset(Dataset):
         dire_hero_ids = [
             hero["hero_id"] for hero in dire_heroes[:5]
         ]
-        match_tensor = create_match_tensor(radiant_hero_ids, dire_hero_ids, self.hero_tensor_cache)
+        match_tensor = create_match_tensor(radiant_hero_ids, dire_hero_ids, self.hero_tensor_cache, canvas_size=224)
 
         # Binary label: 1.0 for Radiant win, 0.0 for Dire win
         label = torch.tensor(
