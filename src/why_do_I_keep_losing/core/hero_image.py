@@ -22,9 +22,9 @@ def create_match_tensor(
     radiant_row = torch.cat(radiant_tensors, dim=2)
     dire_row = torch.cat(dire_tensors, dim=2)
     # 2. Concatenate vertically -> Shape: [3, 2*H, 5*W]
-    grid_tensor = torch.cat([radiant_row, dire_row], dim=1)
+    grid = torch.cat([radiant_row, dire_row], dim=1)
 
-    _, grid_h, grid_w = grid_tensor.shape
+    _, grid_h, grid_w = grid.shape
 
     if grid_h > canvas_size or grid_w > canvas_size:
         raise ValueError(
