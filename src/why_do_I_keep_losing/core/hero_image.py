@@ -38,5 +38,5 @@ def create_match_tensor(
     left = (canvas_size - grid_w) // 2
     canvas[:, top: top + grid_h, left: left + grid_w] = grid
 
-    return match_tensor
+    return canvas 
 
