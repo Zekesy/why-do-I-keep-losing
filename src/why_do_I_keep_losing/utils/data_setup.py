@@ -1,8 +1,9 @@
 """Data setup utilities for preparing PyTorch DataLoaders."""
 
 from typing import Optional, Tuple
-from torch.utils.data import DataLoader, Dataset, random_split
-import json
+from torch.utils.data import DataLoader, Dataset, Subset
+from sklearn.model_selection import train_test_split
+import numpy as np
 
 import torch
 from torchvision import transforms
@@ -14,7 +15,7 @@ def create_dataloaders(
     parquet_dir: str,
     icons_dir: str,
     transform: Optional[transforms.Compose] = None,
-    random_order: bool=False,
+    random_order: bool = False,
     batch_size: int = 32,
     val_split: float = 0.15,
     test_split: float = 0.15,
@@ -28,22 +29,9 @@ def create_dataloaders(
     Dataset,
     Optional[Dataset],
 ]:
-    """Creates training, validation, and optional test DataLoaders.
-
-    Args:
-        parquet_dir: Path to the directory containing processed Parquet files.
-        icons_dir: Path to the hero icon PNG files directory.
-        transform: Torchvision or timm transform pipeline for hero images.
-        batch_size: Number of samples per batch.
-        val_split: Fraction of dataset for validation (e.g., 0.15 for 15%).
-        test_split: Fraction of dataset for testing (e.g., 0.15 for 15%). Set to
-          0.0 to skip.
-        num_workers: Number of subprocesses for data loading.
-        seed: Random seed for reproducible splits.
-
-    Returns:
-        Tuple containing (train_loader, val_loader, test_loader, train_dataset,
-        val_dataset, test_dataset)
+    """Creates training, validation, and optional test DataLoaders,
+    using STRATIFIED splitting so each split preserves the overall
+    radiant/dire win-rate balance.
     """
     full_dataset = DotaHeroPicViTDataset(
         parquet_dir=parquet_dir,
@@ -52,27 +40,37 @@ def create_dataloaders(
         random_order=random_order,
     )
 
-    total_len = len(full_dataset)
-    test_size = int(total_len * test_split) if test_split > 0 else 0
-    val_size = int(total_len * val_split)
-    train_size = total_len - val_size - test_size
+    labels = (full_dataset.df["winning_team"] == "radiant").astype(int).values
+    all_indices = np.arange(len(full_dataset))
 
-    # Split dataset reproducibly
-    splits = [train_size, val_size]
-    if test_size > 0:
-        splits.append(test_size)
+    if test_split > 0:
+        train_val_idx, test_idx = train_test_split(
+            all_indices,
+            test_size=test_split,
+            stratify=labels,
+            random_state=seed,
+        )
+        # Recompute val fraction relative to the remaining train+val pool
+        val_frac_of_remaining = val_split / (1 - test_split)
+        train_idx, val_idx = train_test_split(
+            train_val_idx,
+            test_size=val_frac_of_remaining,
+            stratify=labels[train_val_idx],
+            random_state=seed,
+        )
+    else:
+        train_idx, val_idx = train_test_split(
+            all_indices,
+            test_size=val_split,
+            stratify=labels,
+            random_state=seed,
+        )
+        test_idx = None
 
-    subsets = random_split(
-        full_dataset,
-        splits,
-        generator=torch.Generator().manual_seed(seed),
-    )
+    train_dataset = Subset(full_dataset, train_idx)
+    val_dataset = Subset(full_dataset, val_idx)
+    test_dataset = Subset(full_dataset, test_idx) if test_idx is not None else None
 
-    train_dataset = subsets[0]
-    val_dataset = subsets[1]
-    test_dataset = subsets[2] if test_size > 0 else None
-
-    # Construct DataLoaders
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -94,7 +92,7 @@ def create_dataloaders(
         test_loader = DataLoader(
             test_dataset,
             batch_size=batch_size,
-            shuffle=False,  # Keep evaluation deterministic
+            shuffle=False,
             num_workers=num_workers,
             pin_memory=True,
         )
